@@ -6,8 +6,8 @@ zs_worker_process_init(zs_context_t *ctx)
 {
 	struct rlimit rl;
 
-	rl.rlim_cur = (rlim_t)((2 << 15) - 1);
-	rl.rlim_max = (rlim_t)((2 << 15) - 1);
+	rl.rlim_cur = (rlim_t)((1 << 16) - 1);
+	rl.rlim_max = (rlim_t)((1 << 16) - 1);
 
 	if (setrlimit(RLIMIT_NOFILE, &rl) != 0) {
 		zs_err("set resource limit error.\n"); 
@@ -27,6 +27,12 @@ zs_worker_process_init(zs_context_t *ctx)
 	lua_pushnumber(ctx->L, ctx->conf->cache);
 	if (lua_pcall(ctx->L, 1, 0, 0) != 0) {
 		zs_err("%s\n", lua_tostring(ctx->L, 1));
+		return ;
+	}
+
+	ctx->reqs = zs_palloc(ctx->pool, ctx->conf->worker_connections * sizeof(zs_request_t));
+	if (ctx->reqs == NULL) {
+		zs_err("No enough memory for reqs!\n");
 		return ;
 	}
 }
@@ -50,8 +56,8 @@ static void
 zs_spawn_worker_process(zs_context_t *ctx, int i)
 {
 	//processes[i].pid = getpid();
-	zs_worker_process_loop(ctx, i);
-/*
+	//zs_worker_process_loop(ctx, i);
+
 	pid_t  pid;
 
 	pid = fork();
@@ -68,7 +74,7 @@ zs_spawn_worker_process(zs_context_t *ctx, int i)
 	
 	default: 
 		break;
-	}*/
+	}
 }
 
 void 

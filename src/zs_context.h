@@ -10,9 +10,11 @@
 struct zs_context_s {
     zs_pool_t *pool;
     pid_t pid;
-    void *user_data;
     struct zs_socket_s listen_sock;
     zs_conf_t *conf;
+
+    // request pool
+    zs_request_t *reqs;  
 
     int fd;
     struct flock fl;

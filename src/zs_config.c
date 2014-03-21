@@ -12,13 +12,14 @@
 #define DF_PHP_LISTEN_PORT 81
 #define DF_CACHE  100
 #define DF_IS_DEAMON 1
+#define DF_USE_CACHE 1
 
 #define ZS_MAX_PROCESSES 1024
 #define ZS_MAX_UNSIGNED 65535
 
 
 enum {LISTEN_PORT, SERVER_NAME, INDEX_FILES, ROOT_DIR, WORKERS, WORKER_CONNETIONS, EVENT_TIMEOUT, PHP_LISTEN_PORT,
-       CACHE, IS_DEAMON};
+       CACHE, IS_DEAMON, USE_CACHE};
 const char *config_option[] = {
     "listen_port",
     "server_name",
@@ -30,6 +31,7 @@ const char *config_option[] = {
     "php_listen_port",
     "cache",
     "is_deamon",
+    "use_cache",
     "NULL"
 };
 
@@ -204,6 +206,18 @@ zs_get_config(zs_context_t *ctx)
             lua_pop(L, 2);
             break;
 
+        case USE_CACHE:
+            lua_getglobal(L, "use_cache");
+
+            if ((tmp = lua_tonumber(L, -1)) < 0 || tmp > ZS_MAX_UNSIGNED) {
+                tmp = DF_USE_CACHE; 
+                zs_err("ERROR. The argument *use cache* is error. "
+                        "It has been set default value.\n");
+            } 
+
+            ctx->conf->use_cache =  tmp;
+            lua_pop(L, 2);
+            break;
         }
 
         i++;

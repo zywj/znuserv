@@ -45,11 +45,11 @@ struct zs_request_s {
     char *pf;     /*  path + fullname */
     int_t in_cache;
     char *cache_buf;
+    int_t is_static_file;
 
     char *res_header;
-    void *res_fcnt;
     FILE *fp;
-    char *res_cnt;   /* the content of response */
+    void *res_cnt;   /* the content of response */
     int_t res_code;   /* the response code */
     char *res_explain;  /*  */
     time_t res_date;

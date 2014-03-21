@@ -22,19 +22,35 @@ function init(pc)
 end
 
 function is_in_cache(key)
-	if cache[key] == nil or cache[key].content == nil then
+	if cache[key] then
+		return 1
+	else 
+		return 0
+	end
+end
+
+function is_cache_modified(key, t)
+	if cache[key].modified_time == t then 
 		return 0
 	else
 		return 1
 	end
 end
 
-function sync_content(key, content, md)
+function sync_content(key, c, t)
+	cache[key].content = c
+	cache[key].modified_time = t
+end
 
-	-- if the modified time isn't same as md, the content must be refreshed
-	if cache[key].modified_time ~= md then
-		cache[key].content = content
-	end
+function store_b_cache(key, t)
+	local c
+	local f = io.open(key, "rb")
+	local size = f:seek("end")
+	f:seek("set")
+	c = f:read(size)
+
+	store_cache(key, c, t)
+	f:close()
 end
 
 -- store the html file content into the cache
@@ -85,38 +101,22 @@ function reset_p()
 end
 
 -- return the request html file content
-function get_cache(key, content, md)
+function get_cache(key)
     local cnt
 
-    if is_in_cache(key) == 1 then
+	-- cnt is the newest content 
+    cnt = cache[key].content
 
-		-- if the page is in the cache, but the content had been reset nil
-		-- i.e. active the page
-		if cache[key] ~= nil and cache[key].content == nil then
-			cache[key].content = content
-		else 
-	    	-- before get cache content, it is need to sync the content,
-	    	-- because the content mybe modified.
-	    	sync_content(key, content, md)
+    -- if the p is too big, it needs to reset
+    if cache[key].p == math.huge then
+    	reset_p()
+    else
+    	cache[key].p = cache[key].p + 1
+    end
 
-	    	-- cnt is the newest content 
-		    cnt = cache[key].content
+    -- all score of page will be recalculated when any page is visited.
+    recalc_all_scores()
 
-		    -- if the p is too big, it needs to reset
-		    if cache[key].p == math.huge then
-		    	reset_p()
-		    else
-		    	cache[key].p = cache[key].p + 1
-		    end
-
-		    -- all score of page will be recalculated when any page is visited.
-		    recalc_all_scores()
-
-		    print("** get page from cache **")
-		    return cnt
-		end
-	else 
-		print("in get cache, no page in")
-		return -1
-	end
+    print("** get page from cache **")
+    return cnt, string.len(cnt)
 end

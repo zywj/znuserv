@@ -37,6 +37,7 @@ typedef int                       fd_t;
 #include <sys/epoll.h>
 #include <sys/time.h>
 #include <sys/wait.h>
+#include <sys/mman.h>
 #include <sys/sendfile.h>
 #include <sys/file.h>
 #include <netinet/in.h>
