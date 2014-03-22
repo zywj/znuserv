@@ -65,26 +65,21 @@ zs_cleanup(zs_request_t *req)
 }
 
 void 
-zs_send_header(int v, zs_request_t *req)
+zs_send_header(zs_context_t *ctx, int v, zs_request_t *req)
 {
 	int n, len;
 
 	req->res_header = zs_palloc(req->pool, 256);
+	lua_getglobal(ctx->Hdr, "get_header");
+	lua_pushnumber(ctx->Hdr, req->res_code);
+	lua_pushstring(ctx->Hdr, req->res_lastmod_f);
 
-	switch (req->res_code) {
-	
-	case 404:
-		req->res_header = ZS_404_header;
-		break;
-
-	case 400:
-		req->res_header = ZS_400_header;
-		break;
-
-	case 200:
-		req->res_header = ZS_200_header;
-		break;
+	n = lua_pcall(ctx->Hdr, 2, 1, 0);
+	if (n != LUA_OK) {
+		zs_err("get header error\n");
 	}
+
+	strcpy(req->res_header, lua_tostring(ctx->Hdr, -1));
 
 	len = strlen(req->res_header);
 	req->has_written = 0;
@@ -116,12 +111,17 @@ zs_send_header(int v, zs_request_t *req)
         req->status = ZS_SEND_STATIC; 
     }
 
-	ee.events = EPOLLOUT | EPOLLET;
-	ee.data.fd = req->sockfd;
-	n = epoll_ctl(epfd, EPOLL_CTL_MOD, req->sockfd, &ee);
+    if (req->res_code != 304) {
+		ee.events = EPOLLOUT | EPOLLET;
+		ee.data.fd = req->sockfd;
+		n = epoll_ctl(epfd, EPOLL_CTL_MOD, req->sockfd, &ee);
 
-	if (n < 0) {
-		zs_err("send header mod epoll error.\n");
+		if (n < 0) {
+			zs_err("send header mod epoll error.\n");
+		}
+
+	} else {
+		zs_cleanup(req);
 	}
 }
 
@@ -136,7 +136,6 @@ zs_send_cache_response(zs_request_t *req)
 	while (len != req->has_written) {
 		n = write(req->sockfd, req->cache_buf, len - req->has_written);
 
-		zs_err("%d\n", n);
 		if (n < 0) {
 			if (errno == EAGAIN) {
 				break;
@@ -151,7 +150,6 @@ zs_send_cache_response(zs_request_t *req)
 	}
 
 	zs_cleanup(req);
-
 }
 
 void 
@@ -357,8 +355,23 @@ zs_get_request_line(zs_request_t *req)
 	 * get the request file suffix
 	 */
 	req->suffix = strrchr(req->uri, '.');
-    
-    //zs_err("%s %s %s \n", req->request_method, req->uri, req->http_version);
+	if (req->suffix == NULL) {
+		req->suffix = "/";
+	}
+
+	/*
+	 * get the if modified since time from request head.
+	 */
+	req->if_modified_since = zs_palloc(req->pool, 30);
+	req->if_modified_since = strstr(req->buf, "If-Modified-Since: ");
+	if (req->if_modified_since != NULL) {
+		i = strcspn(req->if_modified_since, rn);
+		req->if_modified_since[i] = '\0';
+		i = strlen(req->if_modified_since) - 19;
+		memmove(req->if_modified_since, req->if_modified_since + 19, i);
+		req->if_modified_since[i] = '\0';	
+		//zs_err("yang %s\n", req->if_modified_since);
+	} 
 }
 
 int_t
@@ -492,6 +505,30 @@ zs_process_static_file(zs_context_t *ctx, zs_request_t *req)
 */
 
 int_t 
+zs_is_same_modtime(zs_request_t *req) 
+{
+	int i, len;
+	struct tm *timeinfo;
+
+	req->res_lastmod_f = zs_palloc(req->pool, 80);
+	timeinfo = gmtime(&req->res_lastmod);
+	strftime(req->res_lastmod_f, 80, "%a, %d %b %G %T GMT", timeinfo);
+
+	if (req->if_modified_since == NULL) {
+		return ZS_NO;
+	}
+
+	len = strlen(req->if_modified_since);
+	for (i = 0; i < len; i++) {
+		if (req->if_modified_since[i] != req->res_lastmod_f[i]) {
+			return ZS_NO;
+		}
+	}
+
+	return ZS_OK;
+}
+
+int_t 
 zs_run_get_method(zs_context_t *ctx, zs_request_t *req)
 {
 	int n, len;
@@ -562,6 +599,7 @@ zs_run_get_method(zs_context_t *ctx, zs_request_t *req)
 				 * if the cache file is modified, it needs to update
 				 * it before get cache.
 				 */
+
 				req->file_fd = open(req->pf, O_RDONLY);
 				if (req->file_fd < 0) {
 					zs_err("open error\n");
@@ -574,8 +612,9 @@ zs_run_get_method(zs_context_t *ctx, zs_request_t *req)
 				n = zs_is_cache_modified(ctx, req);
 				if (n == ZS_OK) {
 					zs_update_cache(ctx, req);
-				} 
-				zs_get_cache(ctx, req);
+					zs_get_cache(ctx, req);
+
+				}
 
 				/*
 				 * directly go to the end label.
@@ -587,23 +626,43 @@ zs_run_get_method(zs_context_t *ctx, zs_request_t *req)
 			}
 		}
 
-
 		/*
 		 * if not in cache, then do it normally.
 		 */
+		if (lstat(req->pf, &f) == -1) {
+			req->res_code = 404;
+			strcpy(req->pf, ctx->conf->page_404);
+		}
+
+		if (S_ISDIR(f.st_mode) && strlen(req->pf) != 1) {
+			req->res_code = 404;
+			strcpy(req->pf, ctx->conf->page_404);			
+		}
+
 		req->file_fd = open(req->pf, O_RDONLY);
 		if (req->file_fd == -1) {
 			req->res_code = 404; 
 
 		} else {
-			req->res_code = 200;     
 			req->res_cnt = zs_palloc(req->pool, (1 << 20));
 			fstat(req->file_fd, &f);
 			req->modified_time = f.st_mtime;
+			req->res_lastmod = f.st_mtime;
+
+			if (zs_is_same_modtime(req) == ZS_OK) {
+				/*
+				 *  http code: 304   Not modified
+ 				 */
+ 				req->res_code = 304;
+
+			} else {
+				req->res_code = 200;  
+			}
 
 			if (ctx->conf->use_cache == 1){
 				zs_store_cache(ctx, req);
 			}
+
 			/*
 			 * read event end, start write event
 			 */
@@ -716,7 +775,6 @@ zs_send_response(zs_request_t *req)
 
 		if (req->has_written == req->res_length) {
 			zs_cleanup(req);
-
 			return;
 		}
 	}  
@@ -825,7 +883,7 @@ zs_handle_request(zs_context_t *ctx, sock_t sockfd)
 			break;
 
 		case ZS_WR_HEADER:
-			zs_send_header(0, req);    
+			zs_send_header(ctx, 0, req);    
 			break;
 
 		case ZS_WR_REQ:
@@ -888,7 +946,7 @@ zs_process_event(zs_context_t *ctx, int i)
 	epoll_ctl(epfd, EPOLL_CTL_ADD, listenfd, &ee);
 
 	do {
-		nevents = epoll_wait(epfd, elist, ZS_MAXEVENT, -1);                
+		nevents = epoll_wait(epfd, elist, ZS_MAXEVENT, 6000);                
 		if (nevents < 0) {
 			zs_err("epoll wait failed.\n"); 
 			return ZS_ERR;

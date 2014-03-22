@@ -19,6 +19,7 @@ struct zs_context_s {
     int fd;
     struct flock fl;
     lua_State *L;
+    lua_State *Hdr;
 };
 
 

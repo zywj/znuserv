@@ -15,13 +15,12 @@
 #define ZS_SEND_STATIC 6
 
 
-#define ZS_404_header "HTTP/1.1 404 Not found\r\nServer: znuserv\r\nContent_Type: text/html\r\nConnection: close\r\n\r\n"
-#define ZS_400_header "HTTP/1.1 400 Bad request\r\nServer: znuserv\r\nContent_Type: text/html\r\nConnection: close\r\n\r\n"
-#define ZS_200_header "HTTP/1.1 200 OK\r\nServer: znuserv\r\nContent_Type: text/html\r\nConnection: close\r\n\r\n"
+#define ZS_404_header "HTTP/1.1 404 Not Found\r\n \
+    Server: znuserv\r\nContent_Type: text/html\r\nConnection: close\r\n\r\n"
 
-#define ZS_404_CNT "<html><head><title>404 Not Found</title></head><body><center><h1>404 Not found.</h1></center><hr><center>znuerser </center></body></html>"
-#define ZS_400_CNT "<html><head><title>400 Bad Reqest</title></head><body><center><h1>400 Bad Request.</h1></center><hr><center>znuerser </center></body></html>"
-
+#define ZS_404_CNT "<html><head><title>404 Not Found</title> \
+    </head><body><center><h1>404 Not found.</h1></center><hr> \
+    <center>znuerser </center></body></html>"
 
 struct zs_request_s {
     zs_pool_t *pool;
@@ -39,6 +38,7 @@ struct zs_request_s {
     char *uri;
     char *http_version;
     char *suffix;
+    char *if_modified_since;
     int_t is_php:1;
     int_t res_length;   /* the length of the response content */
 
@@ -54,7 +54,8 @@ struct zs_request_s {
     char *res_explain;  /*  */
     time_t res_date;
     time_t res_lastmod;
-    int modified_time;
+    char *res_lastmod_f;
+    int modified_time;  /* for cache check*/
 
     char *p;
 };

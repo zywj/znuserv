@@ -13,6 +13,13 @@ zs_worker_process_init(zs_context_t *ctx)
 		zs_err("set resource limit error.\n"); 
 	}
 
+	ctx->Hdr = luaL_newstate();
+	luaL_openlibs(ctx->Hdr);
+	if (luaL_dofile(ctx->Hdr, "./src/zs_header.lua") == -1) {
+		zs_err("not found zs_header.lua");
+		lua_close(ctx->Hdr);
+		return ;
+	}
 
 	ctx->fd = open("./src/znuserv.c", O_WRONLY);
 	ctx->L = luaL_newstate();

@@ -1,7 +1,9 @@
 
 #include <zs_core.h>
 
-
+/*
+ * default value for configure arguments
+ */
 #define DF_LISTEN_PORT 8080
 #define DF_SERVER_NAME "localhost"
 #define DF_INDEX_FILES "index.htm"
@@ -13,13 +15,14 @@
 #define DF_CACHE  100
 #define DF_IS_DEAMON 1
 #define DF_USE_CACHE 1
+#define DF_PAGE_404 "./html/404.html"
 
 #define ZS_MAX_PROCESSES 1024
 #define ZS_MAX_UNSIGNED 65535
 
 
 enum {LISTEN_PORT, SERVER_NAME, INDEX_FILES, ROOT_DIR, WORKERS, WORKER_CONNETIONS, EVENT_TIMEOUT, PHP_LISTEN_PORT,
-       CACHE, IS_DEAMON, USE_CACHE};
+       CACHE, IS_DEAMON, USE_CACHE, PAGE_404};
 const char *config_option[] = {
     "listen_port",
     "server_name",
@@ -32,8 +35,10 @@ const char *config_option[] = {
     "cache",
     "is_deamon",
     "use_cache",
+    "page_404",
     "NULL"
 };
+
 
 int_t
 zs_get_config(zs_context_t *ctx)
@@ -216,6 +221,21 @@ zs_get_config(zs_context_t *ctx)
             } 
 
             ctx->conf->use_cache =  tmp;
+            lua_pop(L, 2);
+            break;
+
+        case PAGE_404:
+            lua_getglobal(L, "page_404");
+
+            t = zs_palloc(ctx->pool, 127);
+            if (strcpy(t, lua_tostring(L, -1)) == NULL || t[0] == '\0') {
+                t = DF_PAGE_404; 
+                zs_err("ERROR. The argument *page 404* is error. "
+                        "It has been set default value.\n");
+            } 
+
+
+            ctx->conf->page_404 =  t;
             lua_pop(L, 2);
             break;
         }

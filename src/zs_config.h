@@ -23,6 +23,7 @@ struct zs_conf_s {
     int_t is_deamon;
     int_t cache;
     int_t use_cache;
+    char *page_404;
 };
 
 
