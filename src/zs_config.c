@@ -45,7 +45,6 @@ zs_get_config(zs_context_t *ctx)
 {
 	int i, tmp, idx_file_err;
     char *config_file = "./conf/zs.config";
-    char *t;
 
     lua_State *L;    
     L = luaL_newstate();
@@ -62,7 +61,6 @@ zs_get_config(zs_context_t *ctx)
             config_option[i][1] != 'U' &&
             config_option[i][2] != 'L' &&
             config_option[i][3] != 'L') {
-
         switch(i) {
 
         case LISTEN_PORT:
@@ -75,7 +73,6 @@ zs_get_config(zs_context_t *ctx)
             }
 
             ctx->conf->listen_port = tmp;
-            lua_pop(L, 2);
             break;
 
         case PHP_LISTEN_PORT:
@@ -88,7 +85,6 @@ zs_get_config(zs_context_t *ctx)
             }
 
             ctx->conf->php_listen_port = tmp;
-            lua_pop(L, 2);
             break;
 
         case CACHE:
@@ -101,22 +97,18 @@ zs_get_config(zs_context_t *ctx)
             }
 
             ctx->conf->cache = tmp;
-            lua_pop(L, 2);
             break;
 
         case SERVER_NAME:
             lua_getglobal(L, "server_name");
 
-            t = zs_palloc(ctx->pool, 127);
-            if (strcpy(t, lua_tostring(L, -1)) == NULL || t[0] == '\0') {
-                t = DF_SERVER_NAME; 
+            ctx->conf->server_name = zs_palloc(ctx->pool, 127);
+            if (strcpy(ctx->conf->server_name, lua_tostring(L, -1)) == NULL || ctx->conf->server_name[0] == '\0') {
+                strcpy(ctx->conf->server_name, DF_SERVER_NAME); 
                 zs_err("ERROR. The argument *server name* is error. "
                         "It has been set default value.\n");
             } 
 
-
-            ctx->conf->server_name =  t;
-            lua_pop(L, 2);
             break;
 
         case INDEX_FILES:
@@ -141,7 +133,6 @@ zs_get_config(zs_context_t *ctx)
                     lua_pop(L, 1);
                     ctx->conf->index_files[k++] = tt;
                 }
-                lua_pop(L, 1);
             }
 
             break;
@@ -149,14 +140,13 @@ zs_get_config(zs_context_t *ctx)
         case ROOT_DIR:
             lua_getglobal(L, "root_dir");
 
-            t = zs_palloc(ctx->pool, 127);
-            if (strcpy(t, lua_tostring(L, -1)) == NULL || t[0] == '\0') {
-                t = DF_ROOT_DIR; 
+            ctx->conf->root_dir = zs_palloc(ctx->pool, 127);
+            if (strcpy(ctx->conf->root_dir, lua_tostring(L, -1)) == NULL || ctx->conf->server_name[0] == '\0') {
+                strcpy(ctx->conf->root_dir, DF_ROOT_DIR);
                 zs_err("ERROR. The argument *root dir* is error. "
                         "It has been set default value.\n");
             } 
-            ctx->conf->root_dir =  t;
-            lua_pop(L, 2);
+
             break;
 
         case WORKERS:
@@ -169,7 +159,6 @@ zs_get_config(zs_context_t *ctx)
             } 
 
             ctx->conf->workers =  tmp;
-            lua_pop(L, 2);
             break;
 
         case WORKER_CONNETIONS:
@@ -182,7 +171,6 @@ zs_get_config(zs_context_t *ctx)
             } 
 
             ctx->conf->worker_connections =  tmp;
-            lua_pop(L, 2);
             break;
 
         case EVENT_TIMEOUT:
@@ -195,7 +183,6 @@ zs_get_config(zs_context_t *ctx)
             } 
 
             ctx->conf->event_timeout =  tmp;
-            lua_pop(L, 2);
             break;
 
         case IS_DEAMON:
@@ -208,7 +195,6 @@ zs_get_config(zs_context_t *ctx)
             } 
 
             ctx->conf->is_deamon =  tmp;
-            lua_pop(L, 2);
             break;
 
         case USE_CACHE:
@@ -221,28 +207,25 @@ zs_get_config(zs_context_t *ctx)
             } 
 
             ctx->conf->use_cache =  tmp;
-            lua_pop(L, 2);
             break;
 
         case PAGE_404:
             lua_getglobal(L, "page_404");
 
-            t = zs_palloc(ctx->pool, 127);
-            if (strcpy(t, lua_tostring(L, -1)) == NULL || t[0] == '\0') {
-                t = DF_PAGE_404; 
+            ctx->conf->page_404 = zs_palloc(ctx->pool, 127);
+            if (strcpy(ctx->conf->page_404, lua_tostring(L, -1)) == NULL || ctx->conf->server_name[0] == '\0') {
+                strcpy(ctx->conf->page_404, DF_PAGE_404);
                 zs_err("ERROR. The argument *page 404* is error. "
                         "It has been set default value.\n");
             } 
 
-
-            ctx->conf->page_404 =  t;
-            lua_pop(L, 2);
             break;
         }
 
         i++;
     }
 
+    lua_close(L);
     return ZS_OK;
 }
 

@@ -15,6 +15,10 @@ struct zs_context_s {
 
     // request pool
     zs_request_t *reqs;  
+    int epfd;
+    struct epoll_event ee;
+    int_t connection_num;
+    int_t process_i;
 
     int fd;
     struct flock fl;

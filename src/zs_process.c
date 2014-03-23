@@ -4,14 +4,14 @@
 void 
 zs_worker_process_init(zs_context_t *ctx)
 {
-	struct rlimit rl;
+	//struct rlimit rl;
 
-	rl.rlim_cur = (rlim_t)((1 << 16) - 1);
-	rl.rlim_max = (rlim_t)((1 << 16) - 1);
+	//rl.rlim_cur = (rlim_t)((1 << 16) - 1);
+	//rl.rlim_max = (rlim_t)((1 << 16) - 1);
 
-	if (setrlimit(RLIMIT_NOFILE, &rl) != 0) {
-		zs_err("set resource limit error.\n"); 
-	}
+	//if (setrlimit(RLIMIT_NOFILE, &rl) != 0) {
+	//	zs_err("set resource limit error.\n"); 
+	//}
 
 	ctx->Hdr = luaL_newstate();
 	luaL_openlibs(ctx->Hdr);
@@ -68,7 +68,6 @@ zs_spawn_worker_process(zs_context_t *ctx, int i)
 	pid_t  pid;
 
 	pid = fork();
-
 	switch(pid) {
 		
 	case -1:

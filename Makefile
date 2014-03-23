@@ -15,7 +15,9 @@ serv: src/znuserv.c \
 	 src/zs_socket.c \
 	 src/zs_timer.c  \
 	 src/zs_process.c \
-	 src/zs_cache.c
+	 src/zs_cache.c  \
+	 src/zs_php.c \
+	 src/zs_http.c
 	 
 	gcc $(CFLAGS) -o $@  $^ $(LDFLAGS) $(PFLAGS)
 

@@ -58,7 +58,8 @@ typedef int                       fd_t;
 #include <zs_timer.h>
 #include <zs_event.h>
 #include <zs_cache.h>
-
+#include <zs_http.h>
+#include <zs_php.h>
 
 #define ZS_OK 1
 #define ZS_NO 0

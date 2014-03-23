@@ -32,7 +32,7 @@ zs_read_res_cnt(zs_context_t *ctx, zs_request_t *req)
 
 	n = read(req->file_fd, req->res_cnt, req->res_length);
 
-	if (n < 0) {	
+	if (n < 0) {
 		zs_err("read file content for cache error.\n");
 		return ;
 	} 

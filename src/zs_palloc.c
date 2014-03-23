@@ -46,20 +46,20 @@ zs_destroy_pool(zs_pool_t *pool)
 
     for (c = pool->cleanup; c; c = c->next) {
         if (c->handler) { 
-            zs_err("run cleanup %p\n", c);
+            zs_err("Memory pool: run cleanup %p\n", c);
             c->handler(c->data);
         }
     }
 
     for (l = pool->large; l; l = l->next) {
-        zs_err("large free %p\n", l);
+        zs_err("Memory pool: large free %p\n", l);
         if (l->alloc)
             free(l->alloc);
     }
 
     for (p = pool, n = pool->d.next;  ; p = n, n = n->d.next) {
         free(p);
-        zs_err("pool free %p\n", p);
+        zs_err("Memory pool: pool free %p\n", p);
         if (n == NULL)
             break;
     }
