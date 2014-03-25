@@ -54,6 +54,7 @@ zs_cleanup(zs_context_t *ctx, zs_request_t *req)
 
 	req->next = ctx->free_reqs;
 	ctx->free_reqs = req;
+
 	zs_destroy_pool(req->pool);
 	//zs_reset_pool(req->pool);
 
@@ -223,7 +224,7 @@ zs_add_index_file(zs_context_t *ctx, zs_request_t *req)
 
 	root_dir_len = strlen(ctx->conf->root_dir);
 
-	memcpy(req->pf, ctx->conf->root_dir, root_dir_len + 1); 
+	zs_strncpy(req->pf, ctx->conf->root_dir, root_dir_len + 1); 
 	req->pf[strlen(req->pf)] = '/';
 
 	for (i = 0; i < 1; i++) { 
@@ -232,7 +233,7 @@ zs_add_index_file(zs_context_t *ctx, zs_request_t *req)
 		/*
 		 * trying to find the index file is exist
 		 */
-		memcpy(req->pf + 1 + root_dir_len, ctx->conf->index_files[i], len + 1);
+		zs_strncpy(req->pf + 1 + root_dir_len, ctx->conf->index_files[i], len + 1);
 		req->pf[strlen(req->pf)] = '\0';
 		
 		
@@ -394,10 +395,10 @@ zs_run_get_method(zs_context_t *ctx, zs_request_t *req)
 		 * merge the root directory and the request string 
 		 */
 		len = strlen(ctx->conf->root_dir);
-		memcpy(req->pf, ctx->conf->root_dir, len + 1);
+		zs_strncpy(req->pf, ctx->conf->root_dir, len + 1);
 		//req->pf[len] = '/';
 		len = strlen(req->uri);
-		memcpy(req->pf  + strlen(ctx->conf->root_dir), req->uri, len + 1);
+		zs_strncpy(req->pf + strlen(ctx->conf->root_dir), req->uri, len + 1);
 		req->pf[strlen(req->pf)] = '\0';
 	}
 
@@ -467,16 +468,15 @@ zs_run_get_method(zs_context_t *ctx, zs_request_t *req)
 		 */
 		if (lstat(req->pf, &f) == -1) {
 			req->res_code = 404;
-			strcpy(req->pf, ctx->conf->page_404);
+			zs_strncpy(req->pf, ctx->conf->page_404, strlen(ctx->conf->page_404));
 		}
 
-		if (S_ISDIR(f.st_mode) && strlen(req->pf) != 1) {
+		if (req->res_code != 404 && S_ISDIR(f.st_mode) && strlen(req->pf) != 1) {
 			req->res_code = 404;
-			strcpy(req->pf, ctx->conf->page_404);			
+			zs_strncpy(req->pf, ctx->conf->page_404, strlen(ctx->conf->page_404));			
 		}
 
-		req->file_fd = open(req->pf, O_RDONLY);
-		if (req->file_fd == -1) {
+		if ((req->file_fd = open(req->pf, O_RDONLY)) == -1) {
 			req->res_code = 404; 
 
 		} else {
@@ -613,7 +613,9 @@ zs_send_response(zs_context_t *ctx, zs_request_t *req)
 			zs_cleanup(ctx, req);
 			return;
 		}
-	}  
+	}  		
+
+
 }
 
 void 
@@ -621,7 +623,7 @@ zs_handle_request(zs_context_t *ctx, zs_request_t *req)
 {				
 	int_t n, on = 1;
 	sock_t connfd, listenfd;
-	zs_request_t  *newreq;
+	zs_request_t *newreq;
 	struct sockaddr_in cliaddr;
 	socklen_t socklen;
 
@@ -699,7 +701,7 @@ zs_handle_request(zs_context_t *ctx, zs_request_t *req)
 				newreq->has_read = 0;
 				newreq->has_written = 0;
 				newreq->in_cache = 0;
-
+   
 				ctx->ee.data.ptr = newreq;
 				ctx->ee.events = EPOLLIN | EPOLLET;
 				n = epoll_ctl(ctx->epfd, EPOLL_CTL_ADD, connfd, &ctx->ee);
@@ -707,17 +709,16 @@ zs_handle_request(zs_context_t *ctx, zs_request_t *req)
 				if (n == -1) {
 					zs_err("connfd epoll add failed.\n"); 
 					return;
-				}
-
-			}	
+				}	
+			} 	
 		}
+	
 		/*
 		if (ctx->conf->workers > 1) {
 			flock(ctx->fd, LOCK_UN);
 		}*/
-
+              
 	} else {	
-
 		switch (req->status) {
 
 		case ZS_RD_REQ:  	

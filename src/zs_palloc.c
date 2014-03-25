@@ -45,8 +45,7 @@ zs_destroy_pool(zs_pool_t *pool)
     zs_pool_cleanup_t *c;
 
     for (c = pool->cleanup; c; c = c->next) {
-        if (c->handler) { 
-            zs_err("Memory pool: run cleanup %p\n", c);
+        if (c->handler) {             
             c->handler(c->data);
         }
     }

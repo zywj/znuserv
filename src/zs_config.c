@@ -102,7 +102,7 @@ zs_get_config(zs_context_t *ctx)
         case SERVER_NAME:
             lua_getglobal(L, "server_name");
 
-            ctx->conf->server_name = zs_palloc(ctx->pool, 127);
+            ctx->conf->server_name = zs_palloc(ctx->pool, 128);
             if (strcpy(ctx->conf->server_name, lua_tostring(L, -1)) == NULL || ctx->conf->server_name[0] == '\0') {
                 strcpy(ctx->conf->server_name, DF_SERVER_NAME); 
                 zs_err("ERROR. The argument *server name* is error. "
@@ -140,13 +140,13 @@ zs_get_config(zs_context_t *ctx)
         case ROOT_DIR:
             lua_getglobal(L, "root_dir");
 
-            ctx->conf->root_dir = zs_palloc(ctx->pool, 127);
+            ctx->conf->root_dir = zs_palloc(ctx->pool, 128);
             if (strcpy(ctx->conf->root_dir, lua_tostring(L, -1)) == NULL || ctx->conf->server_name[0] == '\0') {
                 strcpy(ctx->conf->root_dir, DF_ROOT_DIR);
                 zs_err("ERROR. The argument *root dir* is error. "
                         "It has been set default value.\n");
             } 
-
+            ctx->conf->root_dir[strlen(lua_tostring(L, -1))] = '\0';
             break;
 
         case WORKERS:
@@ -212,12 +212,13 @@ zs_get_config(zs_context_t *ctx)
         case PAGE_404:
             lua_getglobal(L, "page_404");
 
-            ctx->conf->page_404 = zs_palloc(ctx->pool, 127);
+            ctx->conf->page_404 = zs_palloc(ctx->pool, 128);
             if (strcpy(ctx->conf->page_404, lua_tostring(L, -1)) == NULL || ctx->conf->server_name[0] == '\0') {
                 strcpy(ctx->conf->page_404, DF_PAGE_404);
                 zs_err("ERROR. The argument *page 404* is error. "
                         "It has been set default value.\n");
             } 
+            ctx->conf->page_404[strlen(lua_tostring(L, -1))] = '\0';
 
             break;
         }

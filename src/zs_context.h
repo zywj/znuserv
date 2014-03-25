@@ -26,7 +26,6 @@ struct zs_context_s {
     struct flock fl;
     lua_State *L;
     lua_State *Hdr;
-    lua_State *R;
 };
 
 

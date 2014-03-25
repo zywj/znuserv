@@ -9,13 +9,9 @@
 
 typedef struct zs_request_s       zs_request_t;
 typedef struct zs_context_s       zs_context_t;
-typedef struct zs_connection_s    zs_connection_t;
 typedef struct zs_conf_s          zs_conf_t;
 typedef struct zs_pool_s          zs_pool_t;
-typedef struct zs_queue_s         zs_queue_t;
 typedef struct zs_timer_s         zs_timer_t;
-typedef struct zs_process_s       zs_process_t;
-typedef struct zs_buf_s           zs_buf_t;
 typedef unsigned                  uint_t;
 typedef int                       int_t;
 typedef int                       fd_t;

@@ -50,13 +50,6 @@ zs_worker_process_init(zs_context_t *ctx)
 	}
 	ctx->reqs[i].next = NULL;
 	ctx->free_reqs = ctx->reqs;
-
-	ctx->R = luaL_newstate();
-	luaL_openlibs(ctx->R);
-	if (luaL_dofile(ctx->R, "./src/zs_req.lua") == -1) {
-		zs_err("zs_req_lua is not found\n");
-		return ;
-	}
 }
 
 static void

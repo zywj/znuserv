@@ -47,9 +47,7 @@ zs_process_event(zs_context_t *ctx, int i)
 				break;
 			}
 
-			req = elist[k].data.ptr;
-
-			zs_handle_request(ctx, req);
+			zs_handle_request(ctx, elist[k].data.ptr);
 		}
 		
 	} while(1);

@@ -9,7 +9,7 @@ zs_read_php(zs_context_t *ctx, zs_request_t *req)
 
 	size = 1 << 16;
 	req->has_read = 0;
-	req->pre->res_cnt = zs_palloc(req->pre->pool, 1 << 16);
+	req->pre->res_cnt = zs_palloc(req->pre->pool, 1 << 20);
 	while (1) {
 		n = read(req->sockfd, req->pre->res_cnt + req->has_read, size - req->has_read);
 
@@ -34,7 +34,7 @@ zs_read_php(zs_context_t *ctx, zs_request_t *req)
 	req->pre->res_length = strlen(req->pre->res_cnt);
 	req->pre->status = ZS_WR_PHP;
 	ctx->ee.events = EPOLLOUT | EPOLLET;
-	ctx->ee.data.fd = req->pre->sockfd;
+	ctx->ee.data.ptr = req->pre;
 	n = epoll_ctl(ctx->epfd, EPOLL_CTL_MOD, req->pre->sockfd, &ctx->ee);
 
 	if (n < 0) {
@@ -76,7 +76,7 @@ zs_send_php(zs_context_t *ctx, zs_request_t *req)
 
 	close(req->sockfd);
 
-	zs_reset_pool(req->pool);
+	zs_destroy_pool(req->pool);
 	ctx->connection_num--;
 }
 
@@ -109,7 +109,7 @@ zs_write_req_to_php(zs_context_t *ctx, zs_request_t *req)
 
 	req->status = ZS_RD_PHP;
 	ctx->ee.events = EPOLLIN | EPOLLET;
-	ctx->ee.data.fd = req->sockfd;
+	ctx->ee.data.ptr = req;
 	n = epoll_ctl(ctx->epfd, EPOLL_CTL_MOD, req->sockfd, &ctx->ee); 
 
 	if (n < 0) {
@@ -170,7 +170,7 @@ zs_init_apache(zs_context_t *ctx, zs_request_t *req)
      * write event for write request to apache
      */
 	ctx->ee.events = EPOLLOUT | EPOLLET;
-	ctx->ee.data.fd = php_sockfd;
+	ctx->ee.data.ptr = newreq;
 	n = epoll_ctl(ctx->epfd, EPOLL_CTL_ADD, php_sockfd, &ctx->ee);
     
     if (n < 0 ) {
