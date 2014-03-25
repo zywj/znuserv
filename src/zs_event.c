@@ -30,7 +30,7 @@ zs_process_event(zs_context_t *ctx, int i)
 	epoll_ctl(ctx->epfd, EPOLL_CTL_ADD, listenfd, &ctx->ee);
 
 	do {
-		nevents = epoll_wait(ctx->epfd, elist, ZS_MAXEVENT, -1);                
+		nevents = epoll_wait(ctx->epfd, elist, ZS_MAXEVENT, 400);                
 		if (nevents < 0) {
 			zs_err("epoll wait failed.\n"); 
 			return ZS_ERR;
@@ -40,8 +40,10 @@ zs_process_event(zs_context_t *ctx, int i)
 		for (k = 0; k < nevents; k++) { 
 			if ((elist[k].events & EPOLLERR)  ||
 					(elist[k].events & EPOLLHUP)) {
-				zs_err("epoll error.\n");
 
+				req = elist[k].data.ptr;
+				epoll_ctl(ctx->epfd, EPOLL_CTL_DEL, req->sockfd, NULL);
+				zs_err("sockfd:%d epoll error.\n", req->sockfd);
 				break;
 			}
 

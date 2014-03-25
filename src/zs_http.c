@@ -54,8 +54,8 @@ zs_cleanup(zs_context_t *ctx, zs_request_t *req)
 
 	req->next = ctx->free_reqs;
 	ctx->free_reqs = req;
-	//zs_destroy_pool(req->pool);
-	zs_reset_pool(req->pool);
+	zs_destroy_pool(req->pool);
+	//zs_reset_pool(req->pool);
 
 	//zs_err("[ Ed ] Process:%d sockfd:%d status:%d num:%d \n",
 	//	ctx->process_i, req->sockfd, req->status, ctx->connection_num);
@@ -69,7 +69,6 @@ zs_send_header(zs_context_t *ctx, int v, zs_request_t *req)
 {
 	int n, len;
 
-	req->res_header = zs_palloc(req->pool, 256);
 	lua_getglobal(ctx->Hdr, "get_header");
 	lua_pushnumber(ctx->Hdr, req->res_code);
 	lua_pushstring(ctx->Hdr, req->res_lastmod_f);
@@ -79,13 +78,11 @@ zs_send_header(zs_context_t *ctx, int v, zs_request_t *req)
 		zs_err("get header error\n");
 	}
 
-	strcpy(req->res_header, lua_tostring(ctx->Hdr, -1));
-
-	len = strlen(req->res_header);
+	len = strlen(lua_tostring(ctx->Hdr, -1));
 	req->has_written = 0;
 
 	while (len != req->has_written) {
-		n = write(req->sockfd, req->res_header + req->has_written, len - req->has_written);
+		n = write(req->sockfd, lua_tostring(ctx->Hdr, -1) + req->has_written, len - req->has_written);
 
 		if (n == -1) {
 			if (errno == EAGAIN) {
@@ -155,22 +152,46 @@ zs_send_cache_response(zs_context_t *ctx, zs_request_t *req)
 void 
 zs_get_request_line(zs_request_t *req)
 {
-	int i;
+	int i, j, end, c;
 
-	req->p = zs_palloc(req->pool, 512);
-	i = strcspn(req->buf, rn);
-	strncpy(req->p, req->buf, i);
+	//req->p = zs_palloc(req->pool, 1024);
+	end = strcspn(req->buf, rn);
+	//strncpy(req->p, req->buf, i);
 
-	req->request_method = zs_palloc(req->pool, 10);
-	req->uri = zs_palloc(req->pool, 492);
-	req->http_version = zs_palloc(req->pool, 10);
+	req->request_method = zs_palloc(req->pool, 1024);
+	req->uri = zs_palloc(req->pool, 1024);
+	req->http_version = zs_palloc(req->pool, 16);
 
 	/*
 	 * get the request line.
 	 */
-	sscanf(req->p, "%s %s %s", req->request_method, req->uri, req->http_version);
-	req->http_version[8] = '\0';
-	
+	//sscanf(req->p, "%s %s %s", req->request_method, req->uri, req->http_version);
+	for (i = 0, j = 0, c = 0;   ; i++, j++) {
+		if (c == 0 && req->buf[j] != ' ') {
+			req->request_method[i] = req->buf[j];
+
+		} else if (c == 1 && req->buf[j] != ' ') {
+			req->uri[i] = req->buf[j];
+
+		} else if (c == 2 && end != j) {
+			req->http_version[i] = req->buf[j];
+
+		} else if (req->buf[j] == ' ') {
+			switch(c) {
+			case 0: req->request_method[i] = '\0'; break;
+			case 1: req->uri[i] = '\0'; break;
+			case 2 : req->http_version[i] = '\0'; break;
+			}
+
+			i = -1;
+			c++;
+
+		} else if (j == end) {
+			break;
+		}
+
+	}
+
 	/*
 	 * get the request file suffix
 	 */
@@ -198,7 +219,7 @@ int_t
 zs_add_index_file(zs_context_t *ctx, zs_request_t *req) 
 {
 	int i, len, root_dir_len;
-	FILE *f;
+	struct stat f;
 
 	root_dir_len = strlen(ctx->conf->root_dir);
 
@@ -214,16 +235,15 @@ zs_add_index_file(zs_context_t *ctx, zs_request_t *req)
 		memcpy(req->pf + 1 + root_dir_len, ctx->conf->index_files[i], len + 1);
 		req->pf[strlen(req->pf)] = '\0';
 		
-		f = fopen(req->pf, "r"); 
-		if (f > 0) {
+		
+		if (lstat(req->pf, &f) != -1) {
 			req->suffix = strrchr(req->pf, '.');
 			return ZS_OK;
-		} 
-	} 
 
-	if (f == NULL) {
-		zs_err("index not found.\n");     
-	}
+		}  else {
+			zs_err("index not found.\n");     
+		}
+	} 
 
 	return ZS_NO;
 }
@@ -670,7 +690,6 @@ zs_handle_request(zs_context_t *ctx, zs_request_t *req)
 				//ctx->reqs[sockfd] = zs_get_req(ctx, connfd);
 				newreq = zs_get_req(ctx, connfd);
 				if (newreq == NULL) {
-					zs_err("null req\n");
 					return ;
 				}
 

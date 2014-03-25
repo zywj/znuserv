@@ -53,13 +53,14 @@ zs_destroy_pool(zs_pool_t *pool)
 
     for (l = pool->large; l; l = l->next) {
         if (l->alloc){
+
             free(l->alloc);
         }
     }
 
     for (p = pool, n = pool->d.next;  ; p = n, n = n->d.next) {
         free(p);
-
+       
         if (n == NULL){
             break;
         }

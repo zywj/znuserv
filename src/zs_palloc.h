@@ -15,7 +15,7 @@
 
 #define ZS_ALIGNMENT  sizeof(unsigned long)
 #define ZS_MAX_POOL (1024 * 16)
-#define ZS_MAX_ALLOC 2048
+#define ZS_MAX_ALLOC 1024
 #define ZS_POOL_ALIGN 16
 
 #define zs_align_ptr(p, a)  (u_char *) (((uintptr_t) (p) + ((uintptr_t) a - 1)) & ~((uintptr_t) a - 1))
