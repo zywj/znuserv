@@ -19,10 +19,12 @@
 struct zs_request_s {
     zs_pool_t *pool;
 
+    zs_request_t *next;
+
     sock_t sockfd;  
     int_t file_fd;
 
-    zs_request_t *pre;
+    zs_request_t *pre;  /* for php, doesn't for list */
     int_t status;    /* request status */
     int_t has_read;   /* the length of request has read */
     int_t has_written;  /* the length of request has written */
@@ -55,6 +57,6 @@ struct zs_request_s {
 };
 
 zs_request_t *zs_get_req(zs_context_t *ctx, sock_t sockfd);
-void zs_handle_request(zs_context_t *ctx, sock_t sockfd);
+void zs_handle_request(zs_context_t *ctx, zs_request_t *req);
 
 #endif

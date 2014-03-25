@@ -15,6 +15,8 @@ struct zs_context_s {
 
     // request pool
     zs_request_t *reqs;  
+    zs_request_t *free_reqs;
+
     int epfd;
     struct epoll_event ee;
     int_t connection_num;
@@ -24,6 +26,7 @@ struct zs_context_s {
     struct flock fl;
     lua_State *L;
     lua_State *Hdr;
+    lua_State *R;
 };
 
 

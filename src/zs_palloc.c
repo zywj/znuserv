@@ -52,16 +52,17 @@ zs_destroy_pool(zs_pool_t *pool)
     }
 
     for (l = pool->large; l; l = l->next) {
-        zs_err("Memory pool: large free %p\n", l);
-        if (l->alloc)
+        if (l->alloc){
             free(l->alloc);
+        }
     }
 
     for (p = pool, n = pool->d.next;  ; p = n, n = n->d.next) {
         free(p);
-        zs_err("Memory pool: pool free %p\n", p);
-        if (n == NULL)
+
+        if (n == NULL){
             break;
+        }
     }
 }
 
@@ -165,6 +166,10 @@ zs_palloc_block(zs_pool_t *pool, size_t size)
     psize = (size_t) (pool->d.end - (u_char *)pool);
 
     m = zs_memalign(ZS_POOL_ALIGN, psize);
+    if (m == NULL) {
+        zs_err("memalign is null\n");
+        return NULL;
+    }
 
     new = (zs_pool_t *) m;
 
@@ -221,7 +226,7 @@ zs_palloc_large(zs_pool_t *pool, size_t size)
     large->alloc = p;
     large->next = pool->large;
     pool->large = large;
-    
+
     return p;
 }
 

@@ -24,12 +24,18 @@ static char *static_file_suffix[] = {
 zs_request_t *
 zs_get_req(zs_context_t *ctx, int sockfd)
 {
-	if (sockfd < 0 || sockfd > ctx->conf->worker_connections) {
-		zs_err("the sockfd is invalid\n");
-		return NULL;
+	zs_request_t *req;
+
+	if (ctx->free_reqs != NULL) {
+		req = ctx->free_reqs;
+		ctx->free_reqs = ctx->free_reqs->next;
+
+		return req;
 	}
 
-	return &ctx->reqs[sockfd];
+	zs_err("there is no available\n");
+
+	return NULL;
 }
 
 void
@@ -41,12 +47,13 @@ zs_cleanup(zs_context_t *ctx, zs_request_t *req)
 
 	ctx->connection_num--;
 
-	ctx->ee.data.ptr = req;
-	n = epoll_ctl(ctx->epfd, EPOLL_CTL_DEL, req->sockfd, &ctx->ee);
+	n = epoll_ctl(ctx->epfd, EPOLL_CTL_DEL, req->sockfd, NULL);
 	if (n < 0) {
 		zs_err("epoll ctl del failed.\n");
 	}
 
+	req->next = ctx->free_reqs;
+	ctx->free_reqs = req;
 	//zs_destroy_pool(req->pool);
 	zs_reset_pool(req->pool);
 
@@ -106,7 +113,7 @@ zs_send_header(zs_context_t *ctx, int v, zs_request_t *req)
 
     if (req->res_code != 304) {
 		ctx->ee.events = EPOLLOUT | EPOLLET;
-		ctx->ee.data.fd = req->sockfd;
+		ctx->ee.data.ptr = req;
 		n = epoll_ctl(ctx->epfd, EPOLL_CTL_MOD, req->sockfd, &ctx->ee);
 
 		if (n < 0) {
@@ -480,7 +487,7 @@ zs_run_get_method(zs_context_t *ctx, zs_request_t *req)
 
 end:
 		ctx->ee.events = EPOLLOUT | EPOLLET;
-		ctx->ee.data.fd = req->sockfd;
+		ctx->ee.data.ptr = req;
 		n = epoll_ctl(ctx->epfd, EPOLL_CTL_MOD, req->sockfd, &ctx->ee);
 
 		if (n == -1) {
@@ -590,16 +597,15 @@ zs_send_response(zs_context_t *ctx, zs_request_t *req)
 }
 
 void 
-zs_handle_request(zs_context_t *ctx, sock_t sockfd)
-{
+zs_handle_request(zs_context_t *ctx, zs_request_t *req)
+{				
 	int_t n, on = 1;
 	sock_t connfd, listenfd;
-	zs_request_t  *req;
+	zs_request_t  *newreq;
 	struct sockaddr_in cliaddr;
 	socklen_t socklen;
 
-	req =  zs_get_req(ctx, sockfd);
-	listenfd = ctx->listen_sock.sockfd;    
+	listenfd = ctx->listen_sock.sockfd;   
 
 	if (listenfd == req->sockfd) {
 		/*
@@ -633,8 +639,6 @@ zs_handle_request(zs_context_t *ctx, sock_t sockfd)
 				 * then use file lock for only one process to 
 				 * accept a new connection
 				 */ 
-
-
 				socklen = sizeof(cliaddr);
 				connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &socklen);         
 
@@ -664,14 +668,20 @@ zs_handle_request(zs_context_t *ctx, sock_t sockfd)
 				//zs_err("[ Ac ] Process:%d Num:%d connfd:%d\n", 
                 //	ctx->process_i, ctx->connection_num, connfd);
 				//ctx->reqs[sockfd] = zs_get_req(ctx, connfd);
-				ctx->reqs[connfd].pool = zs_create_pool(1024);
-				ctx->reqs[connfd].sockfd = connfd;
-				ctx->reqs[connfd].status = ZS_RD_REQ;
-				ctx->reqs[connfd].has_read = 0;
-				ctx->reqs[connfd].has_written = 0;
-				ctx->reqs[connfd].in_cache = 0;
+				newreq = zs_get_req(ctx, connfd);
+				if (newreq == NULL) {
+					zs_err("null req\n");
+					return ;
+				}
 
-				ctx->ee.data.fd = connfd;
+				newreq->pool = zs_create_pool(1024);
+				newreq->sockfd = connfd;
+				newreq->status = ZS_RD_REQ;
+				newreq->has_read = 0;
+				newreq->has_written = 0;
+				newreq->in_cache = 0;
+
+				ctx->ee.data.ptr = newreq;
 				ctx->ee.events = EPOLLIN | EPOLLET;
 				n = epoll_ctl(ctx->epfd, EPOLL_CTL_ADD, connfd, &ctx->ee);
 
@@ -688,6 +698,7 @@ zs_handle_request(zs_context_t *ctx, sock_t sockfd)
 		}*/
 
 	} else {	
+
 		switch (req->status) {
 
 		case ZS_RD_REQ:  	

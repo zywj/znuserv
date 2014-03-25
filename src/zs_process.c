@@ -4,6 +4,7 @@
 void 
 zs_worker_process_init(zs_context_t *ctx)
 {
+	int i;
 	//struct rlimit rl;
 
 	//rl.rlim_cur = (rlim_t)((1 << 16) - 1);
@@ -42,6 +43,20 @@ zs_worker_process_init(zs_context_t *ctx)
 		zs_err("No enough memory for reqs!\n");
 		return ;
 	}
+
+	/* initial reqs array list */
+	for (i = 0; i < ctx->conf->worker_connections - 1; i++) {
+		ctx->reqs[i].next = &ctx->reqs[i + 1];
+	}
+	ctx->reqs[i].next = NULL;
+	ctx->free_reqs = ctx->reqs;
+
+	ctx->R = luaL_newstate();
+	luaL_openlibs(ctx->R);
+	if (luaL_dofile(ctx->R, "./src/zs_req.lua") == -1) {
+		zs_err("zs_req_lua is not found\n");
+		return ;
+	}
 }
 
 static void
@@ -63,8 +78,8 @@ static void
 zs_spawn_worker_process(zs_context_t *ctx, int i)
 {
 	//processes[i].pid = getpid();
-	//zs_worker_process_loop(ctx, i);
-
+	zs_worker_process_loop(ctx, i);
+/*
 	pid_t  pid;
 
 	pid = fork();
@@ -80,7 +95,7 @@ zs_spawn_worker_process(zs_context_t *ctx, int i)
 	
 	default: 
 		break;
-	}
+	}*/
 }
 
 void 
@@ -99,7 +114,7 @@ zs_worker_process(zs_context_t *ctx)
 void 
 zs_master_process(zs_context_t *ctx)
 {
-	sigset_t sigset, mset;
+	sigset_t sigset;
 
 	/*
 	 * Blocking some signals.
@@ -125,8 +140,9 @@ zs_master_process(zs_context_t *ctx)
 	/*
 	 * Master process suspend....
 	 */
+	sigemptyset(&sigset);
 	for (;;) {
-		sigsuspend(&mset);
+		sigsuspend(&sigset);
 	}
 }
 
