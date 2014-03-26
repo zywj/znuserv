@@ -23,6 +23,7 @@ struct zs_process_s {
 
 void zs_master_process(zs_context_t *ctx);
 void zs_worker_process(zs_context_t *ctx);
+void zs_write_pid(zs_context_t *ctx);
 
 
 #endif

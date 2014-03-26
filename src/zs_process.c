@@ -71,8 +71,8 @@ static void
 zs_spawn_worker_process(zs_context_t *ctx, int i)
 {
 	//processes[i].pid = getpid();
-	zs_worker_process_loop(ctx, i);
-/*
+	//zs_worker_process_loop(ctx, i);
+
 	pid_t  pid;
 
 	pid = fork();
@@ -87,8 +87,9 @@ zs_spawn_worker_process(zs_context_t *ctx, int i)
 		break;
 	
 	default: 
+		ctx->cld_pid[i] = pid;
 		break;
-	}*/
+	}
 }
 
 void 
@@ -97,11 +98,49 @@ zs_worker_process(zs_context_t *ctx)
 	int_t i, num_workers;
 	
 	num_workers = ctx->conf->workers;
+	ctx->cld_pid = zs_palloc(ctx->pool, sizeof(int_t) * ctx->conf->workers);
 
 	for (i = 0; i < num_workers; i++) {
-
 		zs_spawn_worker_process(ctx, i);  
 	}
+
+	zs_write_pid(ctx);
+}
+
+void
+zs_write_pid(zs_context_t *ctx)
+{
+	int_t fd, n, i;
+	char p[31];
+
+	fd = open(ctx->conf->pid, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+	if (fd < 0) {
+		zs_err("open pid file error\n");
+	}
+
+	/*
+	 * worker process pid
+	 */
+	for (i = 0; i < ctx->conf->workers; i++) {
+		sprintf(p, "%d", ctx->cld_pid[i]);
+		p[strlen(p)] = '\n';
+		n = write(fd, p, strlen(p));
+		if (n < 0) {
+			zs_err("write worker process pid error\n");
+		}
+	}
+
+	/*
+	 * master process pid
+	 */
+	sprintf(p, "%d", getpid());
+	p[strlen(p)] = '\n';
+	n = write(fd, p, strlen(p));
+	if (n < 0) {
+		zs_err("write master process pid error\n");
+	}
+
+	close(fd);
 }
 
 void 
@@ -116,7 +155,7 @@ zs_master_process(zs_context_t *ctx)
 	sigaddset(&sigset, SIGCHLD);
 	sigaddset(&sigset, SIGHUP);
 	//sigaddset(&sigset, SIGINT);
-	sigaddset(&sigset, SIGTERM);
+	//sigaddset(&sigset, SIGIO);
 	sigaddset(&sigset, SIGALRM);
 
 	if (sigprocmask(SIG_BLOCK, &sigset, NULL) == -1) {

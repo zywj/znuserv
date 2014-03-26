@@ -16,13 +16,14 @@
 #define DF_IS_DEAMON 1
 #define DF_USE_CACHE 1
 #define DF_PAGE_404 "./html/404.html"
+#define DF_PID "./log/znuserv.pid"
 
 #define ZS_MAX_PROCESSES 1024
 #define ZS_MAX_UNSIGNED 65535
 
 
 enum {LISTEN_PORT, SERVER_NAME, INDEX_FILES, ROOT_DIR, WORKERS, WORKER_CONNETIONS, EVENT_TIMEOUT, PHP_LISTEN_PORT,
-       CACHE, IS_DEAMON, USE_CACHE, PAGE_404};
+       CACHE, IS_DEAMON, USE_CACHE, PAGE_404, PID};
 const char *config_option[] = {
     "listen_port",
     "server_name",
@@ -36,6 +37,7 @@ const char *config_option[] = {
     "is_deamon",
     "use_cache",
     "page_404",
+    "pid",
     "NULL"
 };
 
@@ -219,6 +221,19 @@ zs_get_config(zs_context_t *ctx)
                         "It has been set default value.\n");
             } 
             ctx->conf->page_404[strlen(lua_tostring(L, -1))] = '\0';
+
+            break;
+
+        case PID:
+            lua_getglobal(L, "pid");
+
+            ctx->conf->pid = zs_palloc(ctx->pool, 128);
+            if (strcpy(ctx->conf->pid, lua_tostring(L, -1)) == NULL || ctx->conf->server_name[0] == '\0') {
+                strcpy(ctx->conf->pid, DF_PID);
+                zs_err("ERROR. The argument *pid* is error. "
+                        "It has been set default value.\n");
+            } 
+            ctx->conf->pid[strlen(lua_tostring(L, -1))] = '\0';
 
             break;
         }

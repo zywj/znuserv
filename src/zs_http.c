@@ -631,6 +631,11 @@ zs_handle_request(zs_context_t *ctx, zs_request_t *req)
 
 	if (listenfd == req->sockfd) {
 		/*
+		 * the ctx->connection_num in this processes
+		 * must less then the max num 
+		 */
+		if (ctx->connection_num < ctx->conf->worker_connections) {		
+			while (1) {		
 		if (ctx->conf->workers > 1) {
 			if (flock(ctx->fd, LOCK_EX) < 0) {
 				if (errno == EAGAIN || errno == EACCES) {
@@ -647,15 +652,7 @@ zs_handle_request(zs_context_t *ctx, zs_request_t *req)
 					return ;
 				}
 			}
-		} */
-
-		/*
-		 * the ctx->connection_num in this processes
-		 * must less then the max num 
-		 */
-		if (ctx->connection_num < ctx->conf->worker_connections) {		
-			while (1) {		
-
+		} 
 				/* 
 				 * if the workers great than one , 
 				 * then use file lock for only one process to 
@@ -709,14 +706,15 @@ zs_handle_request(zs_context_t *ctx, zs_request_t *req)
 				if (n == -1) {
 					zs_err("connfd epoll add failed.\n"); 
 					return;
-				}	
-			} 	
-		}
-	
-		/*
+				}
+				
+		
 		if (ctx->conf->workers > 1) {
 			flock(ctx->fd, LOCK_UN);
-		}*/
+		}	
+			} 	
+		}
+
               
 	} else {	
 		switch (req->status) {

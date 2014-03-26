@@ -34,7 +34,7 @@ zs_deamon()
         _exit(0); 
     }
 
-    chdir("/");
+   // chdir("/");
     
     umask(0);
 

@@ -13,6 +13,8 @@ struct zs_context_s {
     struct zs_socket_s listen_sock;
     zs_conf_t *conf;
 
+    int_t *cld_pid;
+
     // request pool
     zs_request_t *reqs;  
     zs_request_t *free_reqs;
