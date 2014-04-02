@@ -71,8 +71,8 @@ static void
 zs_spawn_worker_process(zs_context_t *ctx, int i)
 {
 	//processes[i].pid = getpid();
-	//zs_worker_process_loop(ctx, i);
-
+	zs_worker_process_loop(ctx, i);
+/*
 	pid_t  pid;
 
 	pid = fork();
@@ -89,7 +89,7 @@ zs_spawn_worker_process(zs_context_t *ctx, int i)
 	default: 
 		ctx->cld_pid[i] = pid;
 		break;
-	}
+	}*/
 }
 
 void 

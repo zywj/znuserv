@@ -25,6 +25,7 @@ struct zs_conf_s {
     int_t use_cache;
     char *page_404;
     char *pid;
+    int_t use_event_timeout;
 };
 
 

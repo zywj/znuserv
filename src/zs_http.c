@@ -1,6 +1,8 @@
 
 #include <zs_core.h>
 
+zs_timer_t *timer;
+
 static char *rn = "\r\n";
 
 static char *plain_suffix[] = {
@@ -619,102 +621,119 @@ zs_send_response(zs_context_t *ctx, zs_request_t *req)
 }
 
 void 
-zs_handle_request(zs_context_t *ctx, zs_request_t *req)
-{				
+zs_accept_req(zs_context_t *ctx)
+{
 	int_t n, on = 1;
 	sock_t connfd, listenfd;
 	zs_request_t *newreq;
 	struct sockaddr_in cliaddr;
+    struct timeval now;
 	socklen_t socklen;
+
+	listenfd = ctx->listen_sock.sockfd;
+	/*
+	 * the ctx->connection_num in this processes
+	 * must less then the max num 
+	 */
+	if (ctx->connection_num < ctx->conf->worker_connections) {		
+		while (1) {		
+			
+			/* 
+			 * if the workers great than one , 
+			 * then use file lock for only one process to 
+			 * accept a new connection
+			 */ 
+			if (ctx->conf->workers > 1) {
+				if (flock(ctx->fd, LOCK_EX) < 0) {
+					if (errno == EAGAIN || errno == EACCES) {
+
+						
+						 // if the file lock is held by another process, 
+						 // then this porcess do nothing
+						 
+						zs_err("Process:%d has bctx->een locked!\n", ctx->process_i);
+						return ;
+
+					} else {
+						zs_err("flock error\n");
+						return ;
+					}
+				}
+			} 
+
+			socklen = sizeof(cliaddr);
+			connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &socklen);         
+
+			if (connfd == -1) {
+				if ((errno == EAGAIN) || (errno == EWOULDBLOCK))  {
+					break; 
+
+				} else if (errno == ECONNRESET){
+					zs_err("Connction reset.\n");
+					continue;
+
+				} else {
+					zs_err("accept error.\n");     
+					break;
+				}
+			}
+	
+			ctx->connection_num++;
+
+			n = zs_set_nonblocking(connfd);
+			if  (n == -1) {
+				return ; 
+			}
+
+			setsockopt(connfd, SOL_TCP, TCP_CORK, &on, sizeof(on));
+
+			//zs_err("[ Ac ] Process:%d Num:%d connfd:%d\n", 
+            //	ctx->process_i, ctx->connection_num, connfd);
+			//ctx->reqs[sockfd] = zs_get_req(ctx, connfd);
+			newreq = zs_get_req(ctx, connfd);
+			if (newreq == NULL) {
+				return ;
+			}
+
+			newreq->pool = zs_create_pool(1024);
+			newreq->sockfd = connfd;
+			newreq->status = ZS_RD_REQ;
+			newreq->has_read = 0;
+			newreq->has_written = 0;
+			newreq->in_cache = 0;
+
+			ctx->ee.data.ptr = newreq;
+			ctx->ee.events = EPOLLIN | EPOLLET;
+			n = epoll_ctl(ctx->epfd, EPOLL_CTL_ADD, connfd, &ctx->ee);
+
+			if (n == -1) {
+				zs_err("connfd epoll add failed.\n"); 
+				return;
+			}	
+
+            if (ctx->conf->use_event_timeout == 1) {
+                gettimeofday(&now, NULL); 
+                zs_add_timer_node(ctx, newreq, now.tv_usec);
+                timer->length++;
+            }
+			
+			if (ctx->conf->workers > 1) {
+				flock(ctx->fd, LOCK_UN);
+			}	
+		} 	
+	}
+}
+
+void 
+zs_handle_request(zs_context_t *ctx, zs_request_t *req)
+{	
+	sock_t listenfd;
+    struct timeval now;
 
 	listenfd = ctx->listen_sock.sockfd;   
 
 	if (listenfd == req->sockfd) {
-		/*
-		 * the ctx->connection_num in this processes
-		 * must less then the max num 
-		 */
-		if (ctx->connection_num < ctx->conf->worker_connections) {		
-			while (1) {		
-		if (ctx->conf->workers > 1) {
-			if (flock(ctx->fd, LOCK_EX) < 0) {
-				if (errno == EAGAIN || errno == EACCES) {
-
-					
-					 // if the file lock is held by another process, 
-					 // then this porcess do nothing
-					 
-					zs_err("Process:%d has bctx->een locked!\n", ctx->process_i);
-					return ;
-
-				} else {
-					zs_err("flock error\n");
-					return ;
-				}
-			}
-		} 
-				/* 
-				 * if the workers great than one , 
-				 * then use file lock for only one process to 
-				 * accept a new connection
-				 */ 
-				socklen = sizeof(cliaddr);
-				connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &socklen);         
-
-				if (connfd == -1) {
-					if ((errno == EAGAIN) || (errno == EWOULDBLOCK))  {
-						break; 
-
-					} else if (errno == ECONNRESET){
-						zs_err("Connction reset.\n");
-						continue;
-
-					} else {
-						zs_err("accept error.\n");     
-						break;
-					}
-				}
-		
-				ctx->connection_num++;
-
-				n = zs_set_nonblocking(connfd);
-				if  (n == -1) {
-					return ; 
-				}
-
-				setsockopt(connfd, SOL_TCP, TCP_CORK, &on, sizeof(on));
-
-				//zs_err("[ Ac ] Process:%d Num:%d connfd:%d\n", 
-                //	ctx->process_i, ctx->connection_num, connfd);
-				//ctx->reqs[sockfd] = zs_get_req(ctx, connfd);
-				newreq = zs_get_req(ctx, connfd);
-				if (newreq == NULL) {
-					return ;
-				}
-
-				newreq->pool = zs_create_pool(1024);
-				newreq->sockfd = connfd;
-				newreq->status = ZS_RD_REQ;
-				newreq->has_read = 0;
-				newreq->has_written = 0;
-				newreq->in_cache = 0;
-   
-				ctx->ee.data.ptr = newreq;
-				ctx->ee.events = EPOLLIN | EPOLLET;
-				n = epoll_ctl(ctx->epfd, EPOLL_CTL_ADD, connfd, &ctx->ee);
-
-				if (n == -1) {
-					zs_err("connfd epoll add failed.\n"); 
-					return;
-				}
-				
-		
-		if (ctx->conf->workers > 1) {
-			flock(ctx->fd, LOCK_UN);
-		}	
-			} 	
-		}
-
+		zs_accept_req(ctx);
               
 	} else {	
 		switch (req->status) {
@@ -756,7 +775,13 @@ zs_handle_request(zs_context_t *ctx, zs_request_t *req)
         	} else  {
         		zs_send_cache_response(req);
         	}
-            break;*/
+            break;*/	
+
+        	if (ctx->conf->use_event_timeout == 1) {
+		        gettimeofday(&now, NULL);
+                zs_add_timer_node(ctx, req, now.tv_usec);
+                timer->length++;
+        	}
 		}
 	}
 }

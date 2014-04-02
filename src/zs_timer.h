@@ -1,34 +1,23 @@
 
-#ifndef _ZS_TIMER_H
-#define _ZS_TIMER_H
+#ifndef _ZS_RB_TIMER_H
+#define _ZS_RB_TIMER_H
 
 #include <zs_core.h>
-
-#define PARENT(i) (i)/2
-#define LEFT(i) (i)*2
-#define RIGHT(i) (i)*2+1
-
-
-typedef int_t (*timer_node_insert_pt)(time_t t);
-
-struct zs_timer_node_s {
-    void *data;
-    time_t time;
-};
+ 
+extern zs_timer_t *timer;
 
 struct zs_timer_s {
     int_t length;
-    struct zs_timer_node_s  *node;
     zs_pool_t *pool;
+    
+    zs_rbtree_t *rbt;
 };
 
-int_t zs_timer_init();
+void zs_init_timer(zs_context_t *ctx);
 
-int_t zs_timer_add_node(time_t time);
-int_t zs_timer_del_node();
+void zs_add_timer_node(zs_context_t *ctx, zs_request_t *req, int time);
 
-inline struct zs_timer_node_s zs_timer_del_min();
-inline struct zs_timer_node_s zs_timer_get_min();
+void zs_del_timer_node(zs_context_t *ctx, zs_rb_node_t *node);
 
 #endif
 

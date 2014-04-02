@@ -17,13 +17,15 @@
 #define DF_USE_CACHE 1
 #define DF_PAGE_404 "./html/404.html"
 #define DF_PID "./log/znuserv.pid"
+#define DF_USE_EVENT_TIMEOUT 0
+#define DF_TIMER_STRUCTURE "rb"
 
 #define ZS_MAX_PROCESSES 1024
 #define ZS_MAX_UNSIGNED 65535
 
 
 enum {LISTEN_PORT, SERVER_NAME, INDEX_FILES, ROOT_DIR, WORKERS, WORKER_CONNETIONS, EVENT_TIMEOUT, PHP_LISTEN_PORT,
-       CACHE, IS_DEAMON, USE_CACHE, PAGE_404, PID};
+       CACHE, IS_DEAMON, USE_CACHE, PAGE_404, PID, USE_EVENT_TIMEOUT, TIMER_STRUCTURE};
 const char *config_option[] = {
     "listen_port",
     "server_name",
@@ -38,6 +40,8 @@ const char *config_option[] = {
     "use_cache",
     "page_404",
     "pid",
+    "use_event_timeout",
+    "timer_structure", 
     "NULL"
 };
 
@@ -143,7 +147,7 @@ zs_get_config(zs_context_t *ctx)
             lua_getglobal(L, "root_dir");
 
             ctx->conf->root_dir = zs_palloc(ctx->pool, 128);
-            if (strcpy(ctx->conf->root_dir, lua_tostring(L, -1)) == NULL || ctx->conf->server_name[0] == '\0') {
+            if (strcpy(ctx->conf->root_dir, lua_tostring(L, -1)) == NULL || ctx->conf->root_dir[0] == '\0') {
                 strcpy(ctx->conf->root_dir, DF_ROOT_DIR);
                 zs_err("ERROR. The argument *root dir* is error. "
                         "It has been set default value.\n");
@@ -215,7 +219,7 @@ zs_get_config(zs_context_t *ctx)
             lua_getglobal(L, "page_404");
 
             ctx->conf->page_404 = zs_palloc(ctx->pool, 128);
-            if (strcpy(ctx->conf->page_404, lua_tostring(L, -1)) == NULL || ctx->conf->server_name[0] == '\0') {
+            if (strcpy(ctx->conf->page_404, lua_tostring(L, -1)) == NULL || ctx->conf->page_404[0] == '\0') {
                 strcpy(ctx->conf->page_404, DF_PAGE_404);
                 zs_err("ERROR. The argument *page 404* is error. "
                         "It has been set default value.\n");
@@ -228,7 +232,7 @@ zs_get_config(zs_context_t *ctx)
             lua_getglobal(L, "pid");
 
             ctx->conf->pid = zs_palloc(ctx->pool, 128);
-            if (strcpy(ctx->conf->pid, lua_tostring(L, -1)) == NULL || ctx->conf->server_name[0] == '\0') {
+            if (strcpy(ctx->conf->pid, lua_tostring(L, -1)) == NULL || ctx->conf->pid[0] == '\0') {
                 strcpy(ctx->conf->pid, DF_PID);
                 zs_err("ERROR. The argument *pid* is error. "
                         "It has been set default value.\n");
@@ -236,8 +240,21 @@ zs_get_config(zs_context_t *ctx)
             ctx->conf->pid[strlen(lua_tostring(L, -1))] = '\0';
 
             break;
-        }
 
+        case USE_EVENT_TIMEOUT:
+            lua_getglobal(L, "use_event_timeout");
+
+            if ((tmp = lua_tonumber(L, -1)) < 0 || tmp > ZS_MAX_UNSIGNED) {
+                tmp = DF_USE_EVENT_TIMEOUT; 
+                zs_err("ERROR. The argument *use event timeout* is error. "
+                        "It has been set default value.\n");
+            } 
+
+            ctx->conf->use_event_timeout =  tmp;
+            break;
+
+        }
+        
         i++;
     }
 
