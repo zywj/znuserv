@@ -471,6 +471,7 @@ zs_run_get_method(zs_context_t *ctx, zs_request_t *req)
 		if (lstat(req->pf, &f) == -1) {
 			req->res_code = 404;
 			zs_strncpy(req->pf, ctx->conf->page_404, strlen(ctx->conf->page_404));
+            req->pf[strlen(ctx->conf->page_404)] = '\0';
 		}
 
 		if (req->res_code != 404 && S_ISDIR(f.st_mode) && strlen(req->pf) != 1) {

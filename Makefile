@@ -3,9 +3,9 @@ LDFLAGS=-lpthread -llua5.2 -lm
 PFLAGS=-I src
 #LDFLAGS = -fPIC -shared
 
-all: serv
+all: znuserv
 
-serv: src/znuserv.c \
+znuserv: src/znuserv.c \
 	 src/zs_event.c \
 	 src/zs_string.c \
 	 src/zs_config.c \
@@ -23,4 +23,4 @@ serv: src/znuserv.c \
 	gcc $(CFLAGS) -o $@  $^ $(LDFLAGS) $(PFLAGS)
 
 clean:
-	rm serv 
+	rm znuserv 
