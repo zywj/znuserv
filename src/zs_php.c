@@ -5,26 +5,25 @@ void
 zs_read_php(zs_context_t *ctx, zs_request_t *req)
 {    
 	int n;
-	size_t size;
+	int_t size;
 
-	size = 1 << 16;
+	size = 65000;
 	req->has_read = 0;
-	req->pre->res_cnt = zs_palloc(req->pre->pool, 1 << 20);
+	req->pre->res_cnt = zs_palloc(req->pre->pool, 65000);
+
+    usleep(5000);
 	while (1) {
 		n = read(req->sockfd, req->pre->res_cnt + req->has_read, size - req->has_read);
 
 		if (n < 0) {
-			if (errno == EAGAIN) {
+			if (errno == EWOULDBLOCK) {
+               // zs_err("%d\n", req->has_read);
 				break;
 			
 			} else {
 				perror("Read content from apache");
 				return;
 			} 
-
-		} else if (n == 0) {
-			zs_err("apache close the connection.\n");
-			return ;
 
 		} else if (n > 0) {
 			req->has_read += n;
@@ -60,10 +59,11 @@ zs_send_php(zs_context_t *ctx, zs_request_t *req)
 		n = write(req->sockfd, req->res_cnt, req->res_length - req->has_written);
 
 		if (n < 0) {
-			if (errno == EAGAIN) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				break;
 
 			} else {
+                zs_err("send error?");
 				return;
 			}
 
@@ -95,7 +95,7 @@ zs_write_req_to_php(zs_context_t *ctx, zs_request_t *req)
 	   n = write(req->sockfd, req->pre->buf + req->has_written, len - req->has_written); 
 
 	   if (n < 0) {
-			if (errno == EAGAIN) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				break;
 
 			} else {
