@@ -45,8 +45,8 @@ typedef int                       fd_t;
 #include <netinet/tcp.h>
 #include <pthread.h>
 
-#include <lauxlib.h>
-#include <lualib.h>
+#include "../lib/lua/lauxlib.h"
+#include "../lib/lua/lualib.h"
 
 #include <zs_string.h>
 #include <zs_config.h>
