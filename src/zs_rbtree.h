@@ -4,7 +4,7 @@
 
 #include <zs_core.h>
 
-typedef struct zs_rb_node_s  zs_rb_node_t;
+//typedef struct zs_rb_node_s  zs_rb_node_t;
 
 struct zs_key_pair_s {
     zs_request_t *req;     
